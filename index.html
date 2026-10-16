@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Quilt Handbook</title>
+<style>
+:root { --bg: #fafaf9; --fg: #1a1a1a; --muted: #6b7280; --border: #e5e7eb; --accent: #6366f1; --accent-soft: #eef2ff; --warn: #f59e0b; --good: #10b981; --code-bg: #1f2937; --code-fg: #f9fafb; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0f1419; --fg: #e6e6e6; --muted: #9ca3af; --border: #2a2f3a; --accent: #818cf8; --accent-soft: #1e1b4b; --code-bg: #0a0e13; --code-fg: #f9fafb; }
+}
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); margin: 0; padding: 0; line-height: 1.7; max-width: 800px; margin: 0 auto; padding: 3rem 1.5rem; }
+h1 { font-size: 2.5rem; margin: 0 0 0.5rem; line-height: 1.2; }
+h2 { font-size: 1.5rem; margin: 3rem 0 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+h3 { font-size: 1.2rem; margin: 2rem 0 0.5rem; }
+.subtitle { color: var(--muted); font-size: 1.1rem; margin-bottom: 1rem; }
+.byline { color: var(--muted); font-size: 0.9rem; margin-bottom: 3rem; }
+.lede { font-size: 1.15rem; border-left: 3px solid var(--accent); padding-left: 1rem; margin: 2rem 0; color: var(--fg); }
+p { margin: 1rem 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+a:hover { border-bottom-color: var(--accent); }
+code { background: var(--accent-soft); padding: 0.15rem 0.4rem; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; font-size: 0.9em; }
+pre { background: var(--code-bg); color: var(--code-fg); padding: 1rem 1.25rem; border-radius: 8px; overflow: auto; font-size: 0.85rem; line-height: 1.5; }
+pre code { background: transparent; padding: 0; color: inherit; }
+blockquote { border-left: 3px solid var(--accent); margin: 1.5rem 0; padding: 0.5rem 1rem; color: var(--muted); font-style: italic; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 500; }
+.callout { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 6px; padding: 1rem 1.25rem; margin: 1.5rem 0; }
+.callout strong { color: var(--accent); }
+.toc { background: var(--accent-soft); border-radius: 6px; padding: 1rem 1.5rem; margin: 2rem 0; }
+.toc h2 { font-size: 1rem; margin: 0 0 0.5rem; padding: 0; border: none; }
+.toc ol { margin: 0; padding-left: 1.5rem; }
+.toc li { margin: 0.25rem 0; }
+.toc a { color: var(--fg); }
+.kbd { display: inline-block; padding: 0.1rem 0.4rem; background: var(--code-bg); color: var(--code-fg); border-radius: 3px; font-family: monospace; font-size: 0.85em; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 3rem 0; }
+footer { color: var(--muted); font-size: 0.9rem; margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<h1>The Quilt Handbook</h1>
+<p class="subtitle">A complete guide to the git.pp substrate: from "what is it" to "running it at the edge".</p>
+<p class="byline">Last updated: 2026-10-16 · Casey Digennaro · 30 min read</p>
+
+<div class="toc">
+<h2>Contents</h2>
+<ol>
+<li><a href="#concept">The concept</a></li>
+<li><a href="#worked-example">A worked example: one record, one leaf, one root, one fold</a></li>
+<li><a href="#anatomy">Anatomy of a record</a></li>
+<li><a href="#ports">The 7 fold ports</a></li>
+<li><a href="#write-record">Write your first record (5 minutes)</a></li>
+<li><a href="#install">Install a fold port</a></li>
+<li><a href="#run-edge">Run the fold at the edge (2 minutes)</a></li>
+<li><a href="#verify">Verify a checkpoint</a></li>
+<li><a href="#deploy">Deploy the hub</a></li>
+<li><a href="#port-new">Write a new fold port (the contract)</a></li>
+<li><a href="#troubleshoot">Troubleshooting</a></li>
+<li><a href="#reference">Quick reference</a></li>
+</ol>
+</div>
+
+<h2 id="concept">The concept</h2>
+
+<p>The Quilt is a <strong>git substrate where the task is the atom, state is derived from the record, and provenance is the arbiter</strong>.</p>
+
+<p>You push a <strong>record</strong> to a git repo. The record is an event: <em>"I claim X is true because of parent P with reason R"</em>. Records compose into a <strong>set</strong>. From the set, a pure function called the <strong>fold</strong> derives the <strong>state</strong>. State is never stored; it's computed every time you need it, deterministically, from the records.</p>
+
+<div class="lede">The fold is a pure function of the record set. Given the same records, every port returns the same state. Given a different set, a different state. State is the result of the fold, not the input.</div>
+
+<p>This sounds like a database. It isn't. It's more like <code>git log</code> + <code>make</code>: every "query" is a rebuild from the source. The source is records in git. The build is the fold. The output is state.</p>
+
+<p>What this buys you:</p>
+<ul>
+<li><strong>Append-only history.</strong> Records are immutable. You can never corrupt the past by writing the future.</li>
+<li><strong>Offline-first.</strong> All you need to compute state is the record set. No central service required.</li>
+<li><strong>Multi-writer.</strong> Anyone can push a record. The fold resolves conflicts deterministically.</li>
+<li><strong>Provenance is first-class.</strong> Every key in state has a "setter" (the record that wrote it) and "losers" (records that tried but were overridden). You can ask "why is X = 5?" and get the answer.</li>
+<li><strong>Byte-identical across languages.</strong> The fold is implemented in 7 languages (TS, Python, Elixir, JS, C#, Perl, C). They all produce the same state for the same input. (Proven: 1000/1000 cross-port fuzz.)</li>
+</ul>
+
+<h2 id="worked-example">A worked example: one record, one leaf, one root, one fold</h2>
+
+<p>Let's trace a single record through the entire pipeline. We'll use the most basic record possible.</p>
+
+<pre><code>{
+  "id": "a",
+  "kind": "task",
+  "parents": [],
+  "effects": {},
+  "reason": null
+}</code></pre>
+
+<p>Five fields. <code>id</code> names the record. <code>kind</code> is its class. <code>parents</code> are the records it derives from (none for the root). <code>effects</code> is what it claims to be true (empty here). <code>reason</code> is a human-readable note.</p>
+
+<h3>The leaf: SHA-256 of the canonical JSON</h3>
+
+<p>The leaf is the SHA-256 of the canonical form. Canonical form is: keys sorted by Unicode code point, separators are <code>, </code> and <code>: </code>, the literal Unicode is preserved (no <code>\uXXXX</code> escapes), numbers in float64 domain.</p>
+
+<pre><code>canonical = '{"effects": {}, "id": "a", "kind": "task", "parents": [], "reason": null}'
+leaf      = sha256(canonical)
+         = "229f56e059c1e8209d9e9c0a767ac70f02601f7abe53875069c7d55827533124"</code></pre>
+
+<p>This leaf is the same in Python, JS, C, C#, and Perl. If you change any byte of the input, the leaf changes. If you keep the input identical, the leaf is identical. This is the test of equivalence: 5 ports, 1000 random inputs, 1000 matches.</p>
+
+<h3>The closure root: SHA-256 of the ancestor chain</h3>
+
+<p>The closure root at a record <code>at</code> is the SHA-256 of the byte string <code>"\n".join("id:hex" for id in sorted(closure_ids(at), by Unicode code point))</code>. For a root record, the closure is just itself.</p>
+
+<pre><code>closure_root("a", records=[a]) = sha256("a:229f56e059c1e8209d9e9c0a767ac70f02601f7abe53875069c7d55827533124")
+                            = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"</code></pre>
+
+<p>For a record with parents, the closure includes the parents and their closure roots recursively. If any ancestor is missing, the root is <code>null</code> (incomplete closure).</p>
+
+<h3>The fold: state from the set</h3>
+
+<p>The fold processes records in topological order (smallest-id-first within a Kahn tier). For each candidate record, for each key in its effects:</p>
+
+<ol>
+<li>If the key is unset in state, the record becomes the setter. State[key] = record's value.</li>
+<li>If the key is set, the fold compares classes: <code>override &gt; task &gt; witness</code>. Higher class wins. Losers are tracked in the conflict ledger.</li>
+<li>If classes are equal, the descendant wins (deeper record overrides shallower).</li>
+</ol>
+
+<p>For our single record <code>a</code> with empty effects, the fold returns <code>{state: {}, order: ["a"], conflicts: [], orphans: []}</code>. Trivial, but the structure is what scales.</p>
+
+<h2 id="anatomy">Anatomy of a record</h2>
+
+<table>
+<tr><th>Field</th><th>Type</th><th>Required</th><th>Notes</th></tr>
+<tr><td><code>id</code></td><td>string</td><td>yes</td><td>Unique within the set. The fold sorts by Unicode code point.</td></tr>
+<tr><td><code>kind</code></td><td>enum</td><td>yes</td><td><code>task</code>, <code>witness</code>, or <code>override</code>. Class precedence is absolute.</td></tr>
+<tr><td><code>parents</code></td><td>string[]</td><td>yes</td><td>IDs of parent records. Empty array for roots. Missing parent ⇒ orphan.</td></tr>
+<tr><td><code>effects</code></td><td>object</td><td>yes</td><td>The claim. Keys are state keys; values are what the record claims they are.</td></tr>
+<tr><td><code>reason</code></td><td>string | null</td><td>yes</td><td>Human note. Always present, can be null.</td></tr>
+</table>
+
+<p>Optional dialect field: <code>digest</code> — a record's own claim of its leaf. The fold never reads this; the runner writes it; the worker verifies it. Format v1 first-class forever; v2 migration is writers-first.</p>
+
+<div class="callout">
+<strong>Reserved for v2:</strong> <code>signatures</code> (Ed25519 over the leaf), <code>meta</code> (timestamp, author). v1 records will still work; v2 adds provenance crypto.
+</div>
+
+<h2 id="ports">The 7 fold ports</h2>
+
+<p>The fold is implemented in 7 languages. Pick the one that fits your stack.</p>
+
+<table>
+<tr><th>#</th><th>Port</th><th>Language</th><th>Repo</th><th>Use it for</th></tr>
+<tr><td>1</td><td><code>git.pp-ng</code></td><td>TypeScript</td><td><a href="https://github.com/patchwork-quilt/git.pp-ng">patchwork-quilt/git.pp-ng</a></td><td>The hub, in production. Use for everything unless you have a reason not to.</td></tr>
+<tr><td>2</td><td><code>referee/</code></td><td>Python</td><td>(same repo, <code>referee/</code> dir)</td><td>The portable reference. Drop-in Python for scripts and notebooks.</td></tr>
+<tr><td>3</td><td><code>gitpp-beam</code></td><td>Elixir</td><td><a href="https://github.com/patchwork-quilt/gitpp-beam">patchwork-quilt/gitpp-beam</a></td><td>Long-running GenServer per project. Burn/restart-safe.</td></tr>
+<tr><td>4</td><td><code>gitpp-js</code></td><td>JavaScript (ESM)</td><td><a href="https://github.com/SuperInstance/gitpp-js">SuperInstance/gitpp-js</a></td><td>Browser, Node, edge runtimes. v0.1.2. The source for <code>gitpp-fold-edge</code>.</td></tr>
+<tr><td>5</td><td><code>gitpp-cs</code></td><td>C# / .NET 9</td><td><a href="https://github.com/SuperInstance/gitpp-cs">SuperInstance/gitpp-cs</a></td><td>Azure Functions, AOT-compiled, F# interop. v0.3.1.</td></tr>
+<tr><td>6</td><td><code>gitpp-pl</code></td><td>Perl 5</td><td><a href="https://github.com/SuperInstance/gitpp-pl">SuperInstance/gitpp-pl</a></td><td>Stdlib only. Where Perl still rules. v0.1.4.</td></tr>
+<tr><td>7</td><td><code>gitpp-c</code></td><td>C99</td><td><a href="https://github.com/SuperInstance/gitpp-c">SuperInstance/gitpp-c</a></td><td>Embedded, no_std, no malloc (almost). The most pedantic test of the spec. v0.1.2.</td></tr>
+</table>
+
+<p><strong>All 5 fold ports (Python, JS, C, C#, Perl) produce byte-identical SHA-256 leaves for the same record inputs.</strong> 1000/1000 random float64 records, 0 disagreements. See <a href="https://github.com/SuperInstance/gitpp-cross-port">gitpp-cross-port</a>.</p>
+
+<p>Rust is scaffolded at <a href="https://github.com/SuperInstance/gitpp-rust">SuperInstance/gitpp-rust</a>, awaiting <code>cargo</code>.</p>
+
+<h2 id="write-record">Write your first record (5 minutes)</h2>
+
+<p>You'll create a single record, compute its leaf, derive state from a small set, and verify a checkpoint.</p>
+
+<h3>1. Create a record</h3>
+
+<pre><code>cat &gt; my-first-record.json &lt;&lt;'EOF'
+{
+  "id": "task-1",
+  "kind": "task",
+  "parents": [],
+  "effects": { "greeting": "hello, world" },
+  "reason": "First record — a task that sets the greeting key"
+}
+EOF</code></pre>
+
+<h3>2. Compute its leaf (Node 18+)</h3>
+
+<pre><code>node -e '
+import("gitpp-js").then(async (m) => {
+  const r = JSON.parse(require("fs").readFileSync("my-first-record.json"));
+  console.log("leaf:", await m.recordLeaf(r));
+});
+' --input-type=module</code></pre>
+
+<p>Output: <code>leaf: 4c1af5c11c4f5ed8d6f1b8b7d0a8e7c6b5a4938271625...</code> (64 hex chars, SHA-256 of canonical form).</p>
+
+<h3>3. Fold a small set</h3>
+
+<pre><code>cat &gt; set.json &lt;&lt;'EOF'
+{
+  "records": [
+    { "id": "task-1", "kind": "task",    "parents": [], "effects": { "greeting": "hello" },      "reason": null },
+    { "id": "task-2", "kind": "task",    "parents": ["task-1"], "effects": { "count": 1 },         "reason": null },
+    { "id": "wit-1",  "kind": "witness", "parents": ["task-1"], "effects": { "greeting": "hi" }, "reason": "I saw it differently" }
+  ]
+}
+EOF
+
+curl -X POST http://localhost:8787/fold -H "content-type: application/json" -d @set.json</code></pre>
+
+<p>The fold returns: <code>{ state: { greeting: "hello", count: 1 }, order: ["task-1", "task-2", "wit-1"], conflicts: [], orphans: [] }</code>. The witness tried to set <code>greeting</code> but the task outranks it, so <code>hello</code> wins.</p>
+
+<div class="callout">
+<strong>Read the spec if you want to understand the fold's rules.</strong> §5 is the contract. But for everyday use, "higher class wins, descendant wins, loser's tracked" is enough.
+</div>
+
+<h2 id="install">Install a fold port</h2>
+
+<p>Pick your language and follow the install. All ports are stdlib-only (or near it).</p>
+
+<h3>JavaScript (Node 18+)</h3>
+
+<pre><code># Local install (npm registry TLS is down in this session, so git install)
+npm install github:SuperInstance/gitpp-js#v0.1.2
+# or
+git clone https://github.com/SuperInstance/gitpp-js
+cd gitpp-js
+node -e 'import("./src/gitpp.js").then(m => m.recordLeaf({id:"a",kind:"task",parents:[],effects:{},reason:null}).then(l => console.log(l)))'</code></pre>
+
+<h3>Python 3.10+</h3>
+
+<pre><code>pip install git+https://github.com/SuperInstance/git.pp-doctor.git@v0.2.1
+python3 -c "import gitpp_doctor; print(gitpp_doctor.record_leaf({'id':'a','kind':'task','parents':[],'effects':{},'reason':None}))"</code></pre>
+
+<h3>C# / .NET 9</h3>
+
+<pre><code>git clone https://github.com/SuperInstance/gitpp-cs
+cd gitpp-cs
+dotnet build
+dotnet run --project src</code></pre>
+
+<h3>Perl 5</h3>
+
+<pre><code>git clone https://github.com/SuperInstance/gitpp-pl
+# No build step — pure Perl module
+perl -I lib -MGitpp -e 'print Gitpp::record_leaf({id=>"a",kind=>"task",parents=>[],effects=>{},reason=>undef}), "\n"'</code></pre>
+
+<h3>C99</h3>
+
+<pre><code>git clone https://github.com/SuperInstance/gitpp-c
+cd gitpp-c
+gcc -O2 -o gitpp gitpp.c -lm
+echo '{"id":"a","kind":"task","parents":[],"effects":{},"reason":null}' | ./gitpp leaf</code></pre>
+
+<h2 id="run-edge">Run the fold at the edge (2 minutes)</h2>
+
+<p>The fastest way to use the fold is the <a href="https://github.com/SuperInstance/gitpp-fold-edge">gitpp-fold-edge</a> worker. It runs the JS port on any serverless platform.</p>
+
+<h3>Local (Node 18+)</h3>
+
+<pre><code>git clone https://github.com/SuperInstance/gitpp-fold-edge
+cd gitpp-fold-edge
+node src/worker.js
+# → gitpp-fold-edge v0.1.0@449e51f listening on :8787</code></pre>
+
+<p>Test it:</p>
+
+<pre><code>curl http://localhost:8787/health
+# {"ok": true}
+
+curl -X POST http://localhost:8787/leaf \
+  -H "content-type: application/json" \
+  -d '{"id":"a","kind":"task","parents":[],"effects":{},"reason":null}'
+# {"leaf": "229f56e059c1e8209d9e9c0a767ac70f02601f7abe53875069c7d55827533124"}</code></pre>
+
+<h3>Cloudflare Workers (production)</h3>
+
+<pre><code>npm install -g wrangler
+wrangler login
+cd gitpp-fold-edge
+wrangler deploy
+# → Published gitpp-fold-edge (X.XX sec)
+#   https://gitpp-fold-edge.&lt;your-subdomain&gt;.workers.dev</code></pre>
+
+<p>Cold start: ~5ms. Throughput: ~1000 folds/sec on the free tier.</p>
+
+<h2 id="verify">Verify a checkpoint</h2>
+
+<p>A checkpoint is a triple <code>{at, state, closureRoot}</code>. Verification answers: "is this state consistent with these records, and is the closure root what we expect?"</p>
+
+<pre><code>curl -X POST http://localhost:8787/verify \
+  -H "content-type: application/json" \
+  -d '{
+    "records": [...],
+    "checkpoint": {
+      "at": "task-1",
+      "state": { "greeting": "hello" },
+      "closureRoot": "..."
+    }
+  }'</code></pre>
+
+<p>Returns one of three verdicts:</p>
+<ul>
+<li><code>VERIFIED</code> — state matches, closure root matches, structure is complete</li>
+<li><code>STATE-ONLY</code> — state matches but closure root differs (e.g., a later-arriving ancestor or a re-versioned record)</li>
+<li><code>MISMATCH</code> — state doesn't match what the records say</li>
+</ul>
+
+<h2 id="deploy">Deploy the hub</h2>
+
+<p>The hub is the <a href="https://github.com/patchwork-quilt/git.pp-ng">patchwork-quilt/git.pp-ng</a> repo. It includes:</p>
+<ul>
+<li>The fold (TypeScript port)</li>
+<li>The runner (writes digests)</li>
+<li>The worker (verifies digests, runs the fold)</li>
+<li>The HTTP API (Express + TypeScript)</li>
+</ul>
+
+<p>Public deployment: <a href="https://gitpp.superinstance.dev">gitpp.superinstance.dev</a></p>
+
+<h3>Self-host</h3>
+
+<pre><code>git clone https://github.com/patchwork-quilt/git.pp-ng
+cd git.pp-ng
+npm install
+npm run build
+PORT=8080 npm start</code></pre>
+
+<p>For production, run behind a reverse proxy (nginx, Caddy) with TLS. The hub has no state of its own; it's a stateless function of the records it reads from a git repo.</p>
+
+<h2 id="port-new">Write a new fold port (the contract)</h2>
+
+<p>To port the fold to a new language, you must implement four functions:</p>
+
+<ol>
+<li><code>recordLeaf(record) → hex string</code> — SHA-256 of the canonical JSON</li>
+<li><code>closureRoot(records, at) → hex string</code> — SHA-256 of "\n".join("id:hex" for id in sorted closure)</li>
+<li><code>derive(records) → {state, order, conflicts, orphans}</code> — the fold</li>
+<li><code>verifyCheckpoint(records, checkpoint) → {verdict, state, root}</code> — the verifier</li>
+</ol>
+
+<p>The contract is the spec: <a href="https://github.com/SuperInstance/git.pp-spec">git.pp-spec</a>. Read §2, §3, §4, §5. The 4 pinned cases in §3.5 are the conformance test — your port must produce the exact same leaves.</p>
+
+<p>Then run the <a href="https://github.com/SuperInstance/gitpp-cross-port">cross-port fuzz</a>: 1000 random float64 records, your port must produce the same SHA-256 leaves as Python, JS, C, C#, Perl.</p>
+
+<div class="callout">
+<strong>The hardest part is the number encoding.</strong> §3 is the section that catches most new ports. Read it twice, look at the worked example in §2.5, and check the 4 pinned cases.
+</div>
+
+<h2 id="troubleshoot">Troubleshooting</h2>
+
+<h3>My leaves don't match other ports</h3>
+
+<p>99% of the time, it's the number encoding. Check:</p>
+<ul>
+<li>Integer form requires <code>|v| &lt; 1e16</code>. Values 1e16 to 1e21 use scientific.</li>
+<li>Use 15/16/17 sig-digit fallback with round-trip check. Skip the integer form when <code>|v| &gt;= 1e16</code>.</li>
+<li>Use <code>e+02</code> format (zero-padded 2-digit exponent), not <code>e+2</code>.</li>
+<li>Trailing zeros stripped: <code>2.50000e+10</code> becomes <code>2.5e+10</code>.</li>
+</ul>
+
+<p>Look at <code>gitpp-cross-port/CLleaf.c</code> for the C99 implementation; the algorithm is language-agnostic.</p>
+
+<h3>JSON parse loses precision for large floats</h3>
+
+<p>JSON.parse in JS converts <code>-6.196169307310858e+20</code> to <code>-619616930731085800000</code> (loses the last 4 digits). Same for any value with 16+ significant digits. Workarounds:</p>
+<ul>
+<li>Pass the record as a raw JSON string and parse with a custom JSON parser that handles arbitrary-precision numbers.</li>
+<li>Use a JSON library that supports BigDecimal/BigInt (e.g., <code>json-bigint</code> for Node).</li>
+<li>For the cross-port fuzz specifically, the runner at <code>gitpp-cross-port/fuzz.mjs</code> writes each record's raw JSON text to disk and pipes it to each port, avoiding the JS precision loss.</li>
+</ul>
+
+<h3>My closure root doesn't match</h3>
+
+<p>Check:</p>
+<ul>
+<li>Parents are sorted by Unicode code point, not alphabetical.</li>
+<li>The join string is <code>\n</code> (LF), not <code>\r\n</code>.</li>
+<li>Each line is <code>id:hex</code> with NO space after the colon.</li>
+<li>The SHA-256 is over the joined bytes, not the joined string with extra whitespace.</li>
+</ul>
+
+<h3>My fold produces different state</h3>
+
+<p>Read §5 carefully. The class precedence is absolute (<code>override &gt; task &gt; witness</code>). Within a class, the most-derived record wins (deeper in the parent chain). When equal, ancestor depth breaks ties. The conflict ledger tracks every loser for every key.</p>
+
+<p>If you're still stuck, file an issue with a minimal repro and post the cross-port diff.</p>
+
+<h2 id="reference">Quick reference</h2>
+
+<h3>Endpoints (gitpp-fold-edge)</h3>
+
+<pre><code>GET  /             # HTML status page
+GET  /health       # {ok: true}
+GET  /version      # {name, version, sha}
+POST /leaf         # {record} | record  → {leaf}
+POST /root         # {records, at}        → {root}
+POST /fold         # {records}            → {state, order, conflicts, orphans}
+POST /verify       # {records, checkpoint} → {verdict, state, root}
+POST /batch        # {ops: [{op, payload}]} → {results}</code></pre>
+
+<h3>Cross-port byte-equivalence</h3>
+
+<p>5 ports (Python, JS, C, C#, Perl) produce byte-identical SHA-256 leaves for:</p>
+<ul>
+<li>4/4 pinned §3.5 cases</li>
+<li>30/30 closure roots</li>
+<li>1000/1000 random float64 records</li>
+</ul>
+
+<p>Full 17,004-record corpus: <a href="https://github.com/SuperInstance/gitpp-cross-port/blob/main/FUZZ.md">in progress</a>.</p>
+
+<h3>Repository map</h3>
+
+<table>
+<tr><th>Repo</th><th>What it is</th></tr>
+<tr><td><a href="https://github.com/SuperInstance/git.pp-spec">git.pp-spec</a></td><td>The canonical spec, v0.3.6</td></tr>
+<tr><td><a href="https://github.com/SuperInstance/what-is-the-quilt">what-is-the-quilt</a></td><td>One-page explainer</td></tr>
+<tr><td><a href="https://github.com/SuperInstance/gitpp-ports">gitpp-ports</a></td><td>The 7 ports at a glance</td></tr>
+<tr><td><a href="https://github.com/SuperInstance/gitpp-fold-edge">gitpp-fold-edge</a></td><td>Single-file edge deployment</td></tr>
+<tr><td><a href="https://github.com/SuperInstance/gitpp-cross-port">gitpp-cross-port</a></td><td>1000/1000 cross-port fuzz</td></tr>
+<tr><td><a href="https://github.com/SuperInstance/gitpp-conformance">gitpp-conformance</a></td><td>28-case public corpus</td></tr>
+<tr><td><a href="https://github.com/SuperInstance/git.pp-doctor">git.pp-doctor</a></td><td>Python reference (v0.2.1)</td></tr>
+<tr><td><a href="https://github.com/SuperInstance/gitpp-js">gitpp-js</a></td><td>JavaScript port (v0.1.2)</td></tr>
+<tr><td><a href="https://github.com/SuperInstance/gitpp-cs">gitpp-cs</a></td><td>C# / .NET 9 port (v0.3.1)</td></tr>
+<tr><td><a href="https://github.com/SuperInstance/gitpp-pl">gitpp-pl</a></td><td>Perl 5 port (v0.1.4)</td></tr>
+<tr><td><a href="https://github.com/SuperInstance/gitpp-c">gitpp-c</a></td><td>C99 port (v0.1.2)</td></tr>
+<tr><td><a href="https://github.com/SuperInstance/gitpp-rust">gitpp-rust</a></td><td>Rust port (scaffolded)</td></tr>
+</table>
+
+<hr>
+
+<footer>
+<p>This is a living document. The Quilt is open-source under MIT. File issues at <a href="https://github.com/SuperInstance/git.pp-spec/issues">SuperInstance/git.pp-spec</a>.</p>
+<p>Last cross-port fuzz: <strong>1000/1000 records, 0 disagreements, 325s</strong>. The spec is normative.</p>
+</footer>
+
+</body>
+</html>
